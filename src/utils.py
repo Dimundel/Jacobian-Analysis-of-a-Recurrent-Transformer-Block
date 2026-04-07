@@ -1,6 +1,33 @@
+import os
 import warnings
+import matplotlib.pyplot as plt
+import numpy as np
 from torch.autograd.functional import jacobian
 import torch
+
+
+def setup_experiment(seed=42, save_dir="plots"):
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+    plt.rcParams.update(
+        {
+            "font.family": "serif",
+            "font.serif": ["Times New Roman", "DejaVu Serif"],
+            "font.size": 12,
+            "axes.labelsize": 14,
+            "axes.titlesize": 16,
+            "xtick.labelsize": 12,
+            "ytick.labelsize": 12,
+            "legend.fontsize": 12,
+            "figure.figsize": (10, 6),
+            "lines.linewidth": 2.5,
+            "lines.markersize": 8,
+            "grid.alpha": 0.3,
+        }
+    )
+    os.makedirs(save_dir, exist_ok=True)
+    return save_dir
 
 
 def compute_jacobian_spectral_norm(model, Y, C):
