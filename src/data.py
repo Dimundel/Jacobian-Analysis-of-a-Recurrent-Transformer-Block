@@ -1,6 +1,7 @@
 import torch
 import torchvision
 import torchvision.transforms as transforms
+import warnings
 
 
 def get_synthetic_sample(batch_size=1, S=32, D=64, scale=1.0, seed=None):
@@ -14,6 +15,10 @@ def load_cifar10_sample(batch_size=16, data_dir="./data"):
     """Load CIFAR-10 images and preprocess them into (S, D) sequences.
     Downloads the dataset to data_dir if it doesn't exist.
     """
+    warnings.filterwarnings(
+        "ignore", message=".*align should be passed as Python or NumPy boolean.*"
+    )
+
     transform = transforms.Compose(
         [
             transforms.ToTensor(),
