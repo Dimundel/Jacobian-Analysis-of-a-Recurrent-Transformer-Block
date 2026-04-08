@@ -17,6 +17,10 @@ multiplicative damping factor that prevents gradient explosion. Under mild assum
 Jacobian norm remains O(1) in the large-step regime. Our theoretical results, validated on
 synthetic and CIFAR-10 data, provide insight into stability properties of recurrent models.*
 
+## 📚 Resources
+
+- 📄 **Full Paper** — [Read here](paper/Jacobian_Analysis_of_a_Recurrent_Transformer_Block.pdf)
+
 ## 🚀 Quickstart & Reproducibility
 
 ### 1. Install Dependencies
