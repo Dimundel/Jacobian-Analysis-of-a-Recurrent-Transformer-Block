@@ -10,3 +10,15 @@ wheels/
 .venv
 
 /data
+
+# LaTeX build files
+*.aux
+*.log
+*.out
+*.toc
+*.nav
+*.snm
+*.fls
+*.fdb_latexmk
+*.gz
+*.synctex.gz
