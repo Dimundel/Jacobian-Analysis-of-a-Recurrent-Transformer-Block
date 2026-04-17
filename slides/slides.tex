@@ -33,7 +33,7 @@
 \newcommand{\RMS}{\mathrm{RMSNorm}}
 
 \title{\LARGE \textbf{Jacobian Analysis of a Recurrent\\ Transformer Block}}
-\author{\vspace{1em} Dmitrii Vasilenko \and Ilia Stepanov \and Vadim Kasiuk \and \\ Gleb Karpeev \and Andrey Grabovoy}
+\author{\vspace{1em} \textbf{Dmitrii Vasilenko} \and Ilia Stepanov \and Vadim Kasiuk \and \\ Gleb Karpeev \and Andrey Grabovoy}
 \institute{\vspace{0.5em} \textit{Moscow Institute of Physics and Technology}}
 \date{\vspace{1em} \textcolor{miptblue}{\textbf{AINL 2026}}}
 
@@ -43,77 +43,155 @@
 \begin{frame}[plain]
     \titlepage
 \end{frame}
+
 % ---------------------------------------------------------------
-\begin{frame}{Why Study Recurrent Transformers?}
+% --- Slide 2: Context (NEW) ---
+% Сделайте акцент на том, что это не просто экономия параметров, а переход к динамическим системам.
+\begin{frame}{Background: Recurrent Transformers}
+    \begin{itemize}
+        \item \textbf{Standard Transformers:} Depth is fixed. Increasing depth = increasing parameters.
+        \item \textbf{Recurrent Transformers:} Reuse the same layer weights $T$ times.
+              % \item \textbf{Analogy:} It's like an ODE or a Discrete Dynamical System: $Y^{(t+1)} = F(Y^{(t)})$.
+        \item \textbf{The Problem:} If we loop a block, how do we ensure the activations don't explode or collapse to zero?
+    \end{itemize}
+\end{frame}
+
+% --- Slide 3: Motivation (Expanded) ---
+\begin{frame}{Stability and Jacobians}
+    Consider the update: $Y^{(t+1)} = F(Y^{(t)})$.
+    \vspace{1em}
+    \begin{itemize}
+        \item \textbf{Local Stability:} Determined by the spectral norm of the Jacobian $\norm{\JF(Y)}$.
+        \item If $\norm{\JF} < 1$ $\Rightarrow$ The mapping is a local contraction (stable).
+        \item If $\norm{\JF} \gg 1$ $\Rightarrow$ Small perturbations (noise) grow exponentially $\Rightarrow$ Chaos/Explosion.
+    \end{itemize}
+    \vspace{1em}
+    \textbf{Research Goal:} Find an explicit upper bound for $\norm{\JF}$ for a \textit{realistic} Transformer block (MSA + FFN + Residual + RMSNorm).
+\end{frame}
+
+% --- Slide 4: Block Components (NEW) ---
+\begin{frame}{Building Blocks: MSA and FFN}
+    We analyze the standard Post-Norm configuration:
+    \vspace{1em}
     \begin{columns}
-        \begin{column}{0.55\textwidth}
-            \textbf{Looped (Recurrent) Architectures:}
-            \begin{itemize}
-                \item Reuse the same block across iterations.
-                \item Parameter-efficient: depth $\neq$ model size.
-            \end{itemize}
-
-            \vspace{1em}
-            \textbf{Key Question:}\\
-            Do repeated applications of $F$ converge stably, or does the gradient explode?
+        \begin{column}{0.5\textwidth}
+            \textbf{Multi-Head Self-Attention:}
+            \[ A_h = \text{softmax}\left(\frac{Q_h K_h^\top}{\sqrt{d_h}}\right) \]
+            \[ \text{MSA}(Y) = [A_1 V_1 \parallel \dots \parallel A_H V_H] W_O \]
         \end{column}
-        \begin{column}{0.45\textwidth}
-            \textbf{Iterative Map:}
-            \[
-                Y^{(t+1)} = F\!\left(Y^{(t)}\right)
-            \]
-            \[
-                F(Y) = \RMS\!\left(Y + \nu\bigl(C + \mathrm{TB}(Y)\bigr)\right)
-            \]
-
-            \vspace{1em}
-            \small
-            $\nu > 0$ — Step size coefficient\\
-            $C = Y^{(0)}$ — External context
+        \begin{column}{0.5\textwidth}
+            \textbf{Feed-Forward Network:}
+            \[ \text{FFN}(Y) = \sigma(Y W_1 + b_1)W_2 + b_2 \]
+            \vspace{0.5em}
+            \textbf{RMS Normalization:}
+            \[ \RMS(y) = \text{diag}(\gamma) \frac{y}{\|y\|_2} \]
         \end{column}
     \end{columns}
+    \vspace{1em}
+    \textit{Note: RMSNorm is applied row-wise to the $S \times D$ state matrix.}
 \end{frame}
 
-% ---------------------------------------------------------------
-\begin{frame}{The Role of the Jacobian}
-    \textbf{Why Jacobians?}
-    \begin{itemize}
-        \item Classical tool for local stability analysis.
-        \item If $\norm{J_F(Y)}_2 < 1 \Rightarrow$ local contraction $\Rightarrow$ stability.
-    \end{itemize}
+% --- Slide 5: Iterative Dynamics ---
+\begin{frame}{Formulation of the Architecture}
+    The full update $F(Y)$ used in our analysis:
+    \begin{enumerate}
+        \item \textbf{MSA Sub-block:} $Y' = \RMS(Y + \text{MSA}(Y))$
+        \item \textbf{FFN Sub-block:} $\text{TB}(Y) = \RMS(Y' + \text{FFN}(Y'))$
+        \item \textbf{Global Update (with context $C=Y^{(0)}$ and step $\nu$):}
+    \end{enumerate}
+    \[ F(Y) = \RMS\Bigl(Y + \nu \bigl(C + \text{TB}(Y)\bigr)\Bigr) \]
 
-    \vspace{1.5em}
-    \textbf{Prior Work \small{(Tomihari \& Karakida, 2025)}:}
-    \begin{itemize}
-        \item Analyzed dynamics for \textit{self-attention only} blocks.
-    \end{itemize}
-
-    \vspace{1.5em}
-    \textbf{Our Contribution:}\\
-    We extend this framework to a full Transformer block including MSA, FFN, residual connections, and RMSNorm.
 \end{frame}
-
 % ---------------------------------------------------------------
-\begin{frame}{Architecture: Post-Norm Transformer Block}
-    \textbf{Notation:} State $Y^{(t)} \in \mathbb{R}^{S \times D}$ with sequence length $S$, hidden dimension $D$.
+% \begin{frame}{Why Study Recurrent Transformers?}
+%     \begin{columns}
+%         \begin{column}{0.55\textwidth}
+%             \textbf{Looped (Recurrent) Architectures:}
+%             \begin{itemize}
+%                 \item Reuse the same block across iterations.
+%                 \item Parameter-efficient: depth $\neq$ model size.
+%             \end{itemize}
 
-    \vspace{1.5em}
-    \textbf{Sub-blocks:}
-    \[
-        Y' = \RMS\!\left(Y + \mathrm{MSA}(Y)\right)
-    \]
-    \[
-        \mathrm{TB}(Y) = \RMS\!\left(Y' + \mathrm{FFN}(Y')\right)
-    \]
+%             \vspace{1em}
+%             \textbf{Key Question:}\\
+%             Do repeated applications of $F$ converge stably, or does the gradient explode?
+%         \end{column}
+%         \begin{column}{0.45\textwidth}
+%             \textbf{Iterative Map:}
+%             \[
+%                 Y^{(t+1)} = F\!\left(Y^{(t)}\right)
+%             \]
+%             \[
+%                 F(Y) = \RMS\!\left(Y + \nu\bigl(C + \mathrm{TB}(Y)\bigr)\right)
+%             \]
+
+%             \vspace{1em}
+%             \small
+%             $\nu > 0$ — Step size coefficient\\
+%             $C = Y^{(0)}$ — External context
+%         \end{column}
+%     \end{columns}
+% \end{frame}
+
+% % ---------------------------------------------------------------
+% \begin{frame}{The Role of the Jacobian}
+%     \textbf{Why Jacobians?}
+%     \begin{itemize}
+%         \item Classical tool for local stability analysis.
+%         \item If $\norm{J_F(Y)}_2 < 1 \Rightarrow$ local contraction $\Rightarrow$ stability.
+%     \end{itemize}
+
+%     \vspace{1.5em}
+%     \textbf{Prior Work \small{(Tomihari \& Karakida, 2025)}:}
+%     \begin{itemize}
+%         \item Analyzed dynamics for \textit{self-attention only} blocks.
+%     \end{itemize}
+
+%     \vspace{1.5em}
+%     \textbf{Our Contribution:}\\
+%     We extend this framework to a full Transformer block including MSA, FFN, residual connections, and RMSNorm.
+% \end{frame}
+
+% % ---------------------------------------------------------------
+% \begin{frame}{Architecture: Post-Norm Transformer Block}
+%     \textbf{Notation:} State $Y^{(t)} \in \mathbb{R}^{S \times D}$ with sequence length $S$, hidden dimension $D$.
+
+%     \vspace{1.5em}
+%     \textbf{Sub-blocks:}
+%     \[
+%         Y' = \RMS\!\left(Y + \mathrm{MSA}(Y)\right)
+%     \]
+%     \[
+%         \mathrm{TB}(Y) = \RMS\!\left(Y' + \mathrm{FFN}(Y')\right)
+%     \]
+
+%     \vspace{1em}
+%     \textbf{Full Iterative Update:}
+%     \[
+%         Y^{(t+1)} = \RMS\!\left(Y^{(t)} + \nu\bigl(C + \mathrm{TB}(Y^{(t)})\bigr)\right)
+%     \]
+
+%     \vspace{1em}
+%     \small \textcolor{darkgray}{*Row-wise RMSNorm defined as: $\RMS(y) = \mathrm{diag}(\gamma)\,\frac{y}{\|y\|_2}$}
+% \end{frame}
+
+% --- Slide 6: The Secret Sauce (NEW) ---
+% Это важнейшая лемма из статьи. Объясните, что RMSNorm "сплющивает" градиент.
+\begin{frame}{Jacobian of RMSNorm}
+    The stability of the entire block rests on this property of RMSNorm:
+    \vspace{1em}
+
+    \textbf{Lemma (Tomihari \& Karakida, 2025):}
+
+    For $f(u) = \RMS(u)$, the Jacobian $J_f(u)$ satisfies:
+    \[ \norm{\frac{\partial \RMS(u)}{\partial u}}_2 \le \frac{\gamma_{\max}}{\|u\|_2} \]
 
     \vspace{1em}
-    \textbf{Full Iterative Update:}
-    \[
-        Y^{(t+1)} = \RMS\!\left(Y^{(t)} + \nu\bigl(C + \mathrm{TB}(Y^{(t)})\bigr)\right)
-    \]
-
-    \vspace{1em}
-    \small \textcolor{darkgray}{*Row-wise RMSNorm defined as: $\RMS(y) = \mathrm{diag}(\gamma)\,\frac{y}{\|y\|_2}$}
+    \begin{itemize}
+        \item If the input norm $\|u\|$ is large, the Jacobian becomes very small ($1/\|u\|$).
+        \item RMSNorm acts as a multiplicative damping factor.
+              % \item This is what prevents the "exploding gradient" problem in the loop.
+    \end{itemize}
 \end{frame}
 
 % ---------------------------------------------------------------
@@ -164,12 +242,24 @@
     % \end{itemize}
 \end{frame}
 
+% --- Slide 10: Experiment 1 ---
+\begin{frame}{Experimental Setup}
+    \begin{itemize}
+        \item \textbf{Task:} Verify if the theoretical bound is tight and if $O(1)$ holds.
+        \item \textbf{Configurations:} $S=32, D=64, H=4, D_{ff}=128$.
+        \item \textbf{Data:} Synthetic Gaussian inputs and CIFAR-10 embeddings.
+              % \item \textbf{Method:} Spectral norms computed via \textbf{Power Iteration} (iterative $v \leftarrow Jv / \|Jv\|$).
+    \end{itemize}
+\end{frame}
+
 % ---------------------------------------------------------------
 \begin{frame}{Experiment 1: Validating Theoretical Bounds}
     \begin{figure}
         \centering
         \includegraphics[width=0.73\textwidth]{old_plots_for_conference/fig1_bounds_validation.png}
-        \caption{Empirical $\|J_F\|_2$ vs Theoretical Bound}
+        % \caption{Empirical $\|J_F\|_2$ vs Theoretical Bound}
+
+        The bound is conservative but tracks the trend of the Jacobian as $\nu$ increases.
     \end{figure}
 \end{frame}
 
@@ -179,7 +269,9 @@
     \begin{figure}
         \centering
         \includegraphics[width=0.73\textwidth]{old_plots_for_conference/fig2_asymptotic.png}
-        \caption{Asymptotic Stability as $\nu \rightarrow \infty$}
+        % \caption{Asymptotic Stability as $\nu \rightarrow \infty$}
+
+        RMSNorm makes the architecture immune to gradient explosion from large step sizes.
     \end{figure}
 \end{frame}
 
@@ -188,7 +280,10 @@
     \begin{figure}
         \centering
         \includegraphics[width=1\textwidth]{old_plots_for_conference/fig3_contraction.png}
-        \caption{Contraction dynamics on synthetic data and real embeddings.}
+        % \caption{Contraction dynamics on synthetic data and real embeddings.}
+
+        Convergence is fast for both synthetic data and real CIFAR-10 embeddings.
+
     \end{figure}
 \end{frame}
 
